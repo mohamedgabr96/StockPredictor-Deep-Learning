@@ -36,9 +36,9 @@ def create_dataset(data, days_ahead = 1):
     return pd.Series(X),pd.Series(Y)
 
 
-# separate training (~2016) and validation (2017~2018) data [0:4276]
+# separate training (~2016) and test (2017~2018) data [0:4276]
 X_train, Y_train = create_dataset(x_norm[0:4276])
-X_val, Y_val = create_dataset(x_norm[4277::])
+X_test, Y_test = create_dataset(x_norm[4277::])
 
 # create LSTM network (modify/continue from here)
 model = Sequential()
@@ -48,4 +48,27 @@ model.add(LSTM(
     return_sequences=True))
 model.add(Dropout(0.2))
 
-model.add
+mode.add(LSTM(
+    100,
+    return_sequence=False))
+model.add(Dropout(0.2))
+
+model.add(Dense(
+    output_dim=1))
+model.add(Activation('linear'))
+
+start = time.time()
+model.compile(loss='mse', optimizer='rmsprop')
+print 'compilation time : ', time.time() - start
+
+# train model
+mode.fit(
+    X_train,
+    Y_train,
+    batch_size = 512,
+    nb_epoch=1,
+    validation_split=0.05)
+
+# predict and plot
+predictions = lstm.predict_sequences_multiple(model, X_test, 50, 50)
+lstm.plot_results_multiple(predictions, Y_test, 50)
