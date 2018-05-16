@@ -38,14 +38,15 @@ def create_dataset(data, feature_size = 1):
 
 
 # separate training (~2016) and test (2017~2018) data [0:4276]
+feature_size = 1
 X_train, Y_train = create_dataset(x_norm[0:4276])
 X_test, Y_test = create_dataset(x_norm[4277::])
 
 # create LSTM network (modify/continue from here)
 model = Sequential()
 model.add(LSTM(
-    input_shape = (1,),
-    output_dim = 50,
+    input_shape = (1,feature_size),
+    units = 50, # output space
     return_sequences=True))
 
 model.add(Dropout(0.2))
