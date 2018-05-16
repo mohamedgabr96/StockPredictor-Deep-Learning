@@ -24,12 +24,28 @@ x_raw = pd.Series(x_raw)
 x_norm = x_raw/x_raw[0] - 1
 
 # convert raw series data into x and y dataset. y looks is 1 day ahead by default
+# representation with 1 input feature by default when using a stateful LSTM
+# alternatively, we can use multiple days. see https://machinelearningmastery.com/use-features-lstm-networks-time-series-forecasting/
+# ctrl+F for "Experiments with Features"
 def create_dataset(data, days_ahead = 1):
+    data = data.values
     X, Y = [],[]
     for i in range(data.size - days_ahead):
         X.append(data[i])
         Y.append(data[i+days_ahead])
-    return X,Y
+    return pd.Series(X),pd.Series(Y)
 
 
-# separate training and validation data
+# separate training (~2016) and validation (2017~2018) data [0:4276]
+X_train, Y_train = create_dataset(x_norm[0:4276])
+X_val, Y_val = create_dataset(x_norm[4277::])
+
+# create LSTM network (modify/continue from here)
+model = Sequential()
+model.add(LSTM(
+    input_dim = 1,
+    output_dim = 50,
+    return_sequences=True))
+model.add(Dropout(0.2))
+
+model.add
