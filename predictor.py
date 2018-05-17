@@ -29,17 +29,15 @@ df.to_csv('data.csv')
 data_raw = df.loc[::-1,'adjusted_close'].values
 
 # normalize data
-x_norm = x_raw/x_raw[0] - 1
-#x_norm = x_raw
-#x_norm = x_raw /max(x_raw) -1
+data_norm = data_raw/data_raw[0] - 1
+#data_norm = data_raw
+#data_norm = data_raw /max(data_raw) -1
 
-print("the mean is " + str(np.mean(x_norm)))
+print("the mean is " + str(np.mean(data_norm)))
 
 # convert raw series data into x and y dataset. y = x(t+1)
 # representation with 1 input feature by default when using a stateful LSTM
 # alternatively, we can use multiple days. see https://machinelearningmastery.com/use-features-lstm-networks-time-series-forecasting/
-
-
 def create_dataset(data, feature_size = 1):
     X, Y = [],[]
     for i in range(data.size - feature_size - 1):
@@ -51,9 +49,9 @@ def create_dataset(data, feature_size = 1):
 
 # separate training (~2016) and test (2017~2018) data [0:4276]
 feature_size = 1
-train_size = round(x_norm.size* .6)
-X_train, Y_train = create_dataset(x_norm[0:train_size], feature_size)
-X_test, Y_test = create_dataset(x_norm[train_size+1::], feature_size)
+train_size = round(data_norm.size* .6)
+X_train, Y_train = create_dataset(data_norm[0:train_size], feature_size)
+X_test, Y_test = create_dataset(data_norm[train_size+1::], feature_size)
 
 # reshape data into 3D LSTM input [samples, timesteps, features]
 # see https://machinelearningmastery.com/reshape-input-data-long-short-term-memory-networks-keras/
@@ -61,29 +59,15 @@ X_train = np.reshape(X_train, (X_train.shape[0], 1, feature_size))
 X_test = np.reshape(X_test, (X_test.shape[0], 1, feature_size))
 
 
-
-kr.initializers.Zeros()
-
-
 # create LSTM network (modify/continue from here)
 model = Sequential()
 model.add(LSTM(
     input_shape = (1,feature_size),
-    kernel_initializer='random_uniform',
-    bias_initializer='zeros',
-    recurrent_initializer='random_uniform',
     units = 100,  # output space
-
-
-
     return_sequences=False))
-
 model.add(Dropout(0.2))
 
-
 # model.add(Dropout(0.2))
-
-init='uniform'
 
 model.add(Dense(units=1,init='uniform'))
 model.add(Activation('linear'))
@@ -92,7 +76,6 @@ start = time.time()
 sgd = kr.optimizers.SGD(lr=0.0002, decay=1e-6, momentum=0.9, nesterov=True)
 rms = kr.optimizers.rmsprop(lr=0.00005, rho=0.9, epsilon=None, decay=0.0)
 
-#model.compile(loss='mse', optimizer=sgd)
 model.compile(loss='mse', optimizer=sgd)
 print('compilation time : ', time.time() - start)
 
@@ -127,7 +110,11 @@ test_predictions = model.predict(X_test)
 # plot normalized predictions
 plt.plot(test_predictions)
 plt.plot(Y_test)
+plt.title('Test Predictions vs Actual, Normalized')
+plt.ylabel('score')
+plt.xlabel('sequence(t)')
 plt.legend(['predictions','actual'],loc='upper right')
+plt.show()
 
 # de-normalize the predictions
 train_predictions = (train_predictions+1) * data_raw[0]
@@ -138,4 +125,8 @@ test_actual = (Y_test+1) * data_raw[0]
 # plot the denormalized predictions
 plt.plot(test_predictions)
 plt.plot(test_actual)
+plt.title('Test Predictions vs Actual, Denormalized')
+plt.ylabel('score')
+plt.xlabel('sequence(t)')
 plt.legend(['predictions','actual'],loc='upper right')
+plt.show()
