@@ -12,9 +12,9 @@ import matplotlib.pyplot as plt
 url = 'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol=INX&outputsize=full&datatype=csv&apikey=9B9U2G2YHKS9ME8T'
 
 print('collecting data...')
-# data = requests.get(url)
-# df = pd.read_csv(io.StringIO(data.text))
-df = pd.read_csv('data.csv')
+data = requests.get(url)
+df = pd.read_csv(io.StringIO(data.text))
+# df = pd.read_csv('data.csv')
 
 # checking to see the data was collected
 print(df.head())
@@ -23,10 +23,10 @@ print(df.head())
 df.to_csv('data.csv')
 
 # pre_process data; only need daily_adjusted
-x_raw = df.loc[::-1,'adjusted_close'].values
+data_raw = df.loc[::-1,'adjusted_close'].values
 
 # normalize data
-x_norm = x_raw/x_raw[0] - 1
+data_norm = data_raw/data_raw[0] - 1
 
 # convert raw series data into x and y dataset. y = x(t+1)
 # representation with 1 input feature by default when using a stateful LSTM
@@ -44,9 +44,9 @@ def create_dataset(data, feature_size = 1):
 
 # separate training (~2016) and test (2017~2018) data [0:4276]
 feature_size = 1
-train_size = round(x_norm.size* .8)
-X_train, Y_train = create_dataset(x_norm[0:train_size],feature_size)
-X_test, Y_test = create_dataset(x_norm[train_size+1::],feature_size)
+train_size = round(data_norm.size* .8)
+X_train, Y_train = create_dataset(data_norm[0:train_size],feature_size)
+X_test, Y_test = create_dataset(data_norm[train_size+1::],feature_size)
 
 # reshape data into 3D LSTM input [samples, timesteps, features]
 # see https://machinelearningmastery.com/reshape-input-data-long-short-term-memory-networks-keras/
@@ -73,7 +73,7 @@ model.add(Dense(units=1))
 model.add(Activation('linear'))
 
 start = time.time()
-sgd = kr.optimizers.SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=False)
+sgd = kr.optimizers.SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
 model.compile(loss='mse', optimizer=sgd)
 print('compilation time : ', time.time() - start)
 
@@ -82,7 +82,7 @@ history = model.fit(
     X_train,
     Y_train,
     batch_size=100,
-    epochs=30,
+    epochs=15,
     validation_split=0.33)
 
 # predict and plot
@@ -98,5 +98,22 @@ plt.legend(['train', 'test'], loc='upper right')
 plt.show()
 print("The score is " + str(score))
 
-# predictions = lstm.predict_sequences_multiple(model, X_test, 50, 50)
-# lstm.plot_results_multiple(predictions, Y_test, 50)
+# get predictions
+train_predictions = model.predict(X_train)
+test_predictions = model.predict(X_test)
+
+# plot normalized predictions
+plt.plot(test_predictions)
+plt.plot(Y_test)
+plt.legend(['predictions','actual'],loc='upper right')
+
+# de-normalize the predictions
+train_predictions = (train_predictions+1) * data_raw[0]
+test_predictions = (test_predictions+1) * data_raw[0]
+train_actual = (Y_train+1) * data_raw[0]
+test_actual = (Y_test+1) * data_raw[0]
+
+# plot the denormalized predictions
+plt.plot(test_predictions)
+plt.plot(test_actual)
+plt.legend(['predictions','actual'],loc='upper right')
