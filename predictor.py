@@ -12,12 +12,12 @@ import matplotlib.pyplot as plt
 url = 'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol=INX&outputsize=full&datatype=csv&apikey=9B9U2G2YHKS9ME8T'
 
 print('collecting data...')
-data = requests.get(url)
-df = pd.read_csv(io.StringIO(data.text))
-#df = pd.read_csv('data.csv')
+# data = requests.get(url)
+# df = pd.read_csv(io.StringIO(data.text))
+df = pd.read_csv('data.csv')
 
 # checking to see the data was collected
-#print(df.head())
+print(df.head())
 
 # save csv
 df.to_csv('data.csv')
@@ -42,11 +42,11 @@ def create_dataset(data, feature_size = 1):
     return np.array(X),np.array(Y)
 
 
-# separate training and test data
+# separate training (~2016) and test (2017~2018) data [0:4276]
 feature_size = 1
-train_size = round(x_norm.size*.8)
+train_size = round(x_norm.size* .8)
 X_train, Y_train = create_dataset(x_norm[0:train_size],feature_size)
-X_test, Y_test = create_dataset(x_norm[train_size::],feature_size)
+X_test, Y_test = create_dataset(x_norm[train_size+1::],feature_size)
 
 # reshape data into 3D LSTM input [samples, timesteps, features]
 # see https://machinelearningmastery.com/reshape-input-data-long-short-term-memory-networks-keras/
@@ -57,7 +57,7 @@ X_test = np.reshape(X_test, (X_test.shape[0], 1, feature_size))
 model = Sequential()
 model.add(LSTM(
     input_shape = (1,feature_size),
-    units = 50,  # output space
+    units = 1000,  # output space
     return_sequences=True))
 
 # model.add(Dropout(0.2))
@@ -66,13 +66,14 @@ model.add(LSTM(
     100,  # output space
     return_sequences=False))
 
-model.add(Dropout(0.2))
+
+# model.add(Dropout(0.2))
 
 model.add(Dense(units=1))
 model.add(Activation('linear'))
 
 start = time.time()
-sgd = kr.optimizers.SGD(lr=0.8, momentum=0.07, decay=0.9, nesterov=True)
+sgd = kr.optimizers.SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=False)
 model.compile(loss='mse', optimizer=sgd)
 print('compilation time : ', time.time() - start)
 
@@ -80,22 +81,21 @@ print('compilation time : ', time.time() - start)
 history = model.fit(
     X_train,
     Y_train,
-    batch_size=512,
-    epochs=10,
+    batch_size=100,
+    epochs=30,
     validation_split=0.33)
 
 # predict and plot
-score = model.evaluate(X_test, Y_test, batch_size=512)
-print(history.history.keys())
+score = 1 - model.evaluate(X_test, Y_test, batch_size=100)
+print(history.history)
 
 plt.plot(history.history['loss'])
 plt.plot(history.history['val_loss'])
 plt.title('model loss')
 plt.ylabel('loss')
 plt.xlabel('epoch')
-plt.legend(['train', 'test'], loc='upper left')
+plt.legend(['train', 'test'], loc='upper right')
 plt.show()
-
 print("The score is " + str(score))
 
 # predictions = lstm.predict_sequences_multiple(model, X_test, 50, 50)
