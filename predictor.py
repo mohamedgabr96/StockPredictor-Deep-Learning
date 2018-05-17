@@ -6,6 +6,7 @@ import numpy as np # keras takes numpy arrays, not dataframe :(
 import keras as kr
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation, LSTM
+import matplotlib.pyplot as plt
 
 # fetch csv file using Alpha Vantage api
 url = 'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol=INX&outputsize=full&datatype=csv&apikey=9B9U2G2YHKS9ME8T'
@@ -58,31 +59,41 @@ model.add(LSTM(
     units = 50,  # output space
     return_sequences=True))
 
-model.add(Dropout(0.2))
+# model.add(Dropout(0.2))
 
 model.add(LSTM(
     100,  # output space
     return_sequences=False))
+
 model.add(Dropout(0.2))
 
 model.add(Dense(units=1))
 model.add(Activation('linear'))
 
 start = time.time()
-sgd = kr.optimizers.SGD(lr=0.1, momentum=0.0, decay=0.0, nesterov=False)
+sgd = kr.optimizers.SGD(lr=0.8, momentum=0.07, decay=0.9, nesterov=True)
 model.compile(loss='mse', optimizer=sgd)
 print('compilation time : ', time.time() - start)
 
 # train model
-model.fit(
+history = model.fit(
     X_train,
     Y_train,
     batch_size=512,
-    epochs=1,
-    validation_split=0.05)
+    epochs=10,
+    validation_split=0.33)
 
 # predict and plot
 score = model.evaluate(X_test, Y_test, batch_size=512)
+print(history.history.keys())
+
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title('model loss')
+plt.ylabel('loss')
+plt.xlabel('epoch')
+plt.legend(['train', 'test'], loc='upper left')
+plt.show()
 
 print("The score is " + str(score))
 
