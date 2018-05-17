@@ -12,12 +12,12 @@ import matplotlib.pyplot as plt
 url = 'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol=INX&outputsize=full&datatype=csv&apikey=9B9U2G2YHKS9ME8T'
 
 print('collecting data...')
-# data = requests.get(url)
-# df = pd.read_csv(io.StringIO(data.text))
-df = pd.read_csv('data.csv')
+data = requests.get(url)
+df = pd.read_csv(io.StringIO(data.text))
+#df = pd.read_csv('data.csv')
 
 # checking to see the data was collected
-print(df.head())
+#print(df.head())
 
 # save csv
 df.to_csv('data.csv')
@@ -42,10 +42,11 @@ def create_dataset(data, feature_size = 1):
     return np.array(X),np.array(Y)
 
 
-# separate training (~2016) and test (2017~2018) data [0:4276]
+# separate training and test data
 feature_size = 1
-X_train, Y_train = create_dataset(x_norm[0:4276],feature_size)
-X_test, Y_test = create_dataset(x_norm[4277::],feature_size)
+train_size = round(x_norm.size*.8)
+X_train, Y_train = create_dataset(x_norm[0:train_size],feature_size)
+X_test, Y_test = create_dataset(x_norm[train_size::],feature_size)
 
 # reshape data into 3D LSTM input [samples, timesteps, features]
 # see https://machinelearningmastery.com/reshape-input-data-long-short-term-memory-networks-keras/
