@@ -30,8 +30,6 @@ data_raw = df.loc[::-1,'adjusted_close'].values
 # normalize data
 data_norm = data_raw/data_raw[0] - 1
 
-print("the mean is " + str(np.mean(data_norm)))
-
 # convert raw series data into x and y dataset. y = x(t+1)
 # representation with 1 input feature by default when using a stateful LSTM
 # alternatively, we can use multiple days. see https://machinelearningmastery.com/use-features-lstm-networks-time-series-forecasting/
@@ -45,7 +43,7 @@ def create_dataset(data, feature_size = 1):
 
 
 # separate training and test data
-feature_size = 240
+feature_size = 240 ######
 train_size = round(data_norm.size* .6)
 X_train, Y_train = create_dataset(data_norm[0:train_size], feature_size)
 X_test, Y_test = create_dataset(data_norm[train_size::], feature_size)
@@ -60,34 +58,35 @@ X_test = np.reshape(X_test, (X_test.shape[0], 1, feature_size))
 model = Sequential()
 model.add(LSTM(
     input_shape = (1,feature_size),
-    units = 25,  # output space
-    return_sequences=False))
+    units = 25,  # output space #########
+    return_sequences=False)) ###### change to true if additional LSTM layers
 
-model.add(Dropout(0.1))
+#### possibly additional layers below ######
 
-# model.add(Dropout(0.2))
+model.add(Dropout(0.1)) ########## do we need?
 
-model.add(Dense(units=1)) # init = 'uniform'
-#model.add(Activation('linear'))
+model.add(Dense(units=1)) # Xavier initialization, default no activation
 
 start = time.time()
+
+##### try different optimizers and loss fxn ###### below
 sgd = kr.optimizers.SGD(lr=0.0002, decay=1e-6, momentum=0.9, nesterov=True)
 rms = kr.optimizers.rmsprop(lr=0.00005, rho=0.9, epsilon=None, decay=0.0)
 
 model.compile(loss='mse', optimizer='adam')
 print('compilation time : ', time.time() - start)
 
-score = 1 - model.evaluate(X_test, Y_test, batch_size=100)
+score = 1 - model.evaluate(X_test, Y_test, batch_size=240)
 print("The score before is " + str(score))
 
-# train model
+# train model ####try different batchsize, epoch, justify why validation split=0.4
 history = model.fit(
     X_train,
     Y_train,
     batch_size=240,
-    epochs=1000,
+    epochs=100,
     validation_split=0.4,
-    verbose=1)
+    verbose=0)
 
 # predict and plot
 score = 1 - model.evaluate(X_test, Y_test, batch_size=240)
