@@ -2,21 +2,20 @@ import requests
 import io
 import time
 import pandas as pd
-import numpy as np # keras takes numpy arrays, not dataframe :(
+import numpy as np
 import keras as kr
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation, LSTM
 import matplotlib.pyplot as plt
+from sklearn.preprocessing import MinMaxScaler
 
-# fix random seed
-np.random.seed(5)
 
 # fetch csv file using Alpha Vantage api
 url = 'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol=INX&outputsize=full&datatype=csv&apikey=9B9U2G2YHKS9ME8T'
 
 print('collecting data...')
 data = requests.get(url)
-df = pd.read_csv(io.StringIO(data.text))
+df = pd.read_csv(io.StringIO(data.text),index_col=None)
 # df = pd.read_csv('data.csv')
 
 # checking to see the data was collected
@@ -30,8 +29,6 @@ data_raw = df.loc[::-1,'adjusted_close'].values
 
 # normalize data
 data_norm = data_raw/data_raw[0] - 1
-#data_norm = data_raw
-#data_norm = data_raw /max(data_raw) -1
 
 print("the mean is " + str(np.mean(data_norm)))
 
@@ -47,11 +44,11 @@ def create_dataset(data, feature_size = 1):
     return np.array(X),np.array(Y)
 
 
-# separate training (~2016) and test (2017~2018) data [0:4276]
-feature_size = 1
+# separate training and test data
+feature_size = 240
 train_size = round(data_norm.size* .6)
 X_train, Y_train = create_dataset(data_norm[0:train_size], feature_size)
-X_test, Y_test = create_dataset(data_norm[train_size+1::], feature_size)
+X_test, Y_test = create_dataset(data_norm[train_size::], feature_size)
 
 # reshape data into 3D LSTM input [samples, timesteps, features]
 # see https://machinelearningmastery.com/reshape-input-data-long-short-term-memory-networks-keras/
@@ -63,20 +60,21 @@ X_test = np.reshape(X_test, (X_test.shape[0], 1, feature_size))
 model = Sequential()
 model.add(LSTM(
     input_shape = (1,feature_size),
-    units = 100,  # output space
+    units = 25,  # output space
     return_sequences=False))
-model.add(Dropout(0.2))
+
+model.add(Dropout(0.1))
 
 # model.add(Dropout(0.2))
 
-model.add(Dense(units=1,init='uniform'))
-model.add(Activation('linear'))
+model.add(Dense(units=1)) # init = 'uniform'
+#model.add(Activation('linear'))
 
 start = time.time()
 sgd = kr.optimizers.SGD(lr=0.0002, decay=1e-6, momentum=0.9, nesterov=True)
 rms = kr.optimizers.rmsprop(lr=0.00005, rho=0.9, epsilon=None, decay=0.0)
 
-model.compile(loss='mse', optimizer=sgd)
+model.compile(loss='mse', optimizer='adam')
 print('compilation time : ', time.time() - start)
 
 score = 1 - model.evaluate(X_test, Y_test, batch_size=100)
@@ -86,12 +84,13 @@ print("The score before is " + str(score))
 history = model.fit(
     X_train,
     Y_train,
-    batch_size=100,
-    epochs=100 ,
-    validation_split=0.4)
+    batch_size=240,
+    epochs=1000,
+    validation_split=0.4,
+    verbose=1)
 
 # predict and plot
-score = 1 - model.evaluate(X_test, Y_test, batch_size=100)
+score = 1 - model.evaluate(X_test, Y_test, batch_size=240)
 print(history.history)
 
 plt.plot(history.history['loss'])
