@@ -19,9 +19,29 @@ lr_range = [0.0000001, 0.0001]
 momentum_range = [0.8, 0.95]
 feature_size_range = [0, 400]
 
+# fetch csv file using Alpha Vantage api
+url = 'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol=INX&outputsize=full&datatype=csv&apikey=9B9U2G2YHKS9ME8T'
+print('collecting data...')
+data = requests.get(url)
+
+df = pd.read_csv(io.StringIO(data.text),index_col=None)
+# df = pd.read_csv('data.csv')
+
+# checking to see the data was collected
+print(df.head())
+
+# save csv
+df.to_csv('data.csv')
+
+# pre_process data; only need daily_adjusted
+data_raw = df.loc[::-1,'adjusted_close'].values
+
+# normalize data
+data_norm = data_raw/data_raw[0] - 1
+
 
 def try_random(trials):
-    scores_regroup = pd.DataFrame(data=None)
+    results = []
     for i in range(0, trials):
         epoch = int(random.uniform(epoch_range[0], epoch_range[1]))
         print("Number of Epochs: " + str(epoch) + "\n")
@@ -30,33 +50,13 @@ def try_random(trials):
         momentum = random.uniform(momentum_range[0], momentum_range[1])
         feature_size = int(random.uniform(feature_size_range[0], feature_size_range[1]))
         print("Feature Size: " + str(feature_size) + "\n")
-        score = LSTM_1(epoch, decay, lr, momentum, feature_size)
+        score = LSTM_1(data_norm, epoch, decay, lr, momentum, feature_size)
         print("The Score is: " + str(score) + "\n")
-        scores_regroup.append([epoch, decay, lr, momentum, feature_size, score])
-    scores_regroup.to_csv("Results.csv")
-    print(scores_regroup)
+        results.append([epoch, decay, lr, momentum, feature_size, score])
+    return results
 
 
-def LSTM_1(epoch, decay, lr, momentum, feature_size):
-    # fetch csv file using Alpha Vantage api
-    url = 'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol=INX&outputsize=full&datatype=csv&apikey=9B9U2G2YHKS9ME8T'
-
-    print('collecting data...')
-    data = requests.get(url)
-    df = pd.read_csv(io.StringIO(data.text),index_col=None)
-    # df = pd.read_csv('data.csv')
-
-    # checking to see the data was collected
-    print(df.head())
-
-    # save csv
-    df.to_csv('data.csv')
-
-    # pre_process data; only need daily_adjusted
-    data_raw = df.loc[::-1,'adjusted_close'].values
-
-    # normalize data
-    data_norm = data_raw/data_raw[0] - 1
+def LSTM_1(data_norm, epoch, decay, lr, momentum, feature_size):
 
     # convert raw series data into x and y dataset. y = x(t+1)
     # representation with 1 input feature by default when using a stateful LSTM
@@ -101,7 +101,7 @@ def LSTM_1(epoch, decay, lr, momentum, feature_size):
     sgd = kr.optimizers.SGD(lr=lr, decay=decay, momentum=momentum, nesterov=True)
     rms = kr.optimizers.rmsprop(lr=0.00005, rho=0.9, epsilon=None, decay=0.0)
 
-    model.compile(loss='mse', optimizer='adam', metrics=['accuracy'])
+    model.compile(loss='mse', optimizer='adam')
     print('compilation time : ', time.time() - start)
 
 
@@ -126,10 +126,8 @@ def LSTM_1(epoch, decay, lr, momentum, feature_size):
     # plt.show()
     # print("The score is " + str(score))
 
-    scores, acc = model.evaluate(X_test, Y_test, batch_size=240)
-
-
-    return acc
+    score = model.evaluate(X_test, Y_test, batch_size=240)
+    return score
 
     # # get predictions
     # train_predictions = model.predict(X_train)
@@ -160,5 +158,6 @@ def LSTM_1(epoch, decay, lr, momentum, feature_size):
     # plt.show()
 
 
-try_random(5)
-
+results = try_random(5)
+results_df = pd.DataFrame(data= results, columns=['Epoch','Decay','Learning Rate','Momentum','Feature Size','Score'])
+results_df.to_csv("Results.csv")
