@@ -10,9 +10,7 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
 import random
 
-
-
-
+# set range for hyperparameters
 epoch_range = [40,200]
 decay_range = [.9, .99]
 lr_range = [0.0000001, 0.001]
@@ -39,7 +37,18 @@ data_raw = df.loc[::-1,'adjusted_close'].values
 # normalize data
 data_norm = data_raw/data_raw[0] - 1
 
+# convert raw series data into x and y dataset. y = x(t+1)
+# representation with 1 input feature by default when using a stateful LSTM
+# alternatively, we can use multiple days. see https://machinelearningmastery.com/use-features-lstm-networks-time-series-forecasting/
+def create_dataset(data, feature_size = 1):
+    X, Y = [],[]
+    for i in range(data.size - feature_size - 1):
+        a = data[i:(i+feature_size)]
+        X.append(a)
+        Y.append(data[i+feature_size])
+    return np.array(X),np.array(Y)
 
+# random hyperparameter trial runs for a network
 def try_random(trials):
     results = []
     for i in range(0, trials):
@@ -59,20 +68,8 @@ def try_random(trials):
 
 def LSTM_1(data_norm, epoch, decay, lr, momentum, feature_size):
 
-    # convert raw series data into x and y dataset. y = x(t+1)
-    # representation with 1 input feature by default when using a stateful LSTM
-    # alternatively, we can use multiple days. see https://machinelearningmastery.com/use-features-lstm-networks-time-series-forecasting/
-    def create_dataset(data, feature_size = 1):
-        X, Y = [],[]
-        for i in range(data.size - feature_size - 1):
-            a = data[i:(i+feature_size)]
-            X.append(a)
-            Y.append(data[i+feature_size])
-        return np.array(X),np.array(Y)
-
-
     # separate training and test data
-   # feature_size = feature_size ######
+    # feature_size = feature_size ######
     train_size = round(data_norm.size* .6)
     X_train, Y_train = create_dataset(data_norm[0:train_size], feature_size)
     X_test, Y_test = create_dataset(data_norm[train_size::], feature_size)
@@ -159,6 +156,6 @@ def LSTM_1(data_norm, epoch, decay, lr, momentum, feature_size):
     # plt.show()
 
 
-results = try_random(500)
+results = try_random(5)
 results_df = pd.DataFrame(data= results, columns=['Epoch','Decay','Learning Rate','Momentum','Feature Size','Score'])
 results_df.to_csv("AdamResults.csv")
