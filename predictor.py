@@ -13,11 +13,11 @@ import random
 
 
 
-epoch_range = [20,40]
-decay_range = [.9, .95]
-lr_range = [0.0000001, 0.0001]
+epoch_range = [40,200]
+decay_range = [.9, .99]
+lr_range = [0.0000001, 0.001]
 momentum_range = [0.8, 0.95]
-feature_size_range = [0, 400]
+feature_size_range = [0, 500]
 
 # fetch csv file using Alpha Vantage api
 url = 'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol=INX&outputsize=full&datatype=csv&apikey=9B9U2G2YHKS9ME8T'
@@ -43,6 +43,7 @@ data_norm = data_raw/data_raw[0] - 1
 def try_random(trials):
     results = []
     for i in range(0, trials):
+        print("Trial "+str(i)+"\n")
         epoch = int(random.uniform(epoch_range[0], epoch_range[1]))
         print("Number of Epochs: " + str(epoch) + "\n")
         decay = random.uniform(decay_range[0], decay_range[1])
@@ -158,6 +159,6 @@ def LSTM_1(data_norm, epoch, decay, lr, momentum, feature_size):
     # plt.show()
 
 
-results = try_random(5)
+results = try_random(500)
 results_df = pd.DataFrame(data= results, columns=['Epoch','Decay','Learning Rate','Momentum','Feature Size','Score'])
-results_df.to_csv("Results.csv")
+results_df.to_csv("AdamResults.csv")
