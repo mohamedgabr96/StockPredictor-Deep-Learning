@@ -15,7 +15,7 @@ epoch_range = [40,200]
 decay_range = [.9, .99]
 lr_range = [0.0000001, 0.001]
 momentum_range = [0.8, 0.95]
-feature_size_range = [0, 500]
+feature_size_range = [1, 500]
 
 # fetch csv file using Alpha Vantage api
 url = 'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol=INX&outputsize=full&datatype=csv&apikey=9B9U2G2YHKS9ME8T'
@@ -23,7 +23,7 @@ print('collecting data...')
 data = requests.get(url)
 
 df = pd.read_csv(io.StringIO(data.text),index_col=None)
-# df = pd.read_csv('data.csv')
+#df = pd.read_csv('data.csv')
 
 # checking to see the data was collected
 print(df.head())
@@ -67,7 +67,6 @@ def try_random(trials):
 
 
 def LSTM_1(data_norm, epoch, decay, lr, momentum, feature_size):
-
     # separate training and test data
     # feature_size = feature_size ######
     train_size = round(data_norm.size* .6)
@@ -88,7 +87,7 @@ def LSTM_1(data_norm, epoch, decay, lr, momentum, feature_size):
         return_sequences=False))  ###### change to true if additional LSTM layers
 
     #### possibly additional layers below ######
-
+    #model.add(Activation('linear'))   
     model.add(Dropout(0.1)) ########## do we need?
 
     model.add(Dense(units=1))  # Xavier initialization, default no activation
@@ -101,8 +100,6 @@ def LSTM_1(data_norm, epoch, decay, lr, momentum, feature_size):
 
     model.compile(loss='mse', optimizer='adam')
     print('compilation time : ', time.time() - start)
-
-
 
     # train model ####try different batchsize, epoch, justify why validation split=0.4
     history = model.fit(
@@ -155,7 +152,49 @@ def LSTM_1(data_norm, epoch, decay, lr, momentum, feature_size):
     # plt.legend(['predictions','actual'],loc='upper right')
     # plt.show()
 
+def Multi_Perceptron(data_norm, epoch, decay, lr, momentum, feature_size):
+    # separate training and test data
+    # feature_size = feature_size ######
+    train_size = round(data_norm.size* .6)
+    X_train, Y_train = create_dataset(data_norm[0:train_size], feature_size)
+    X_test, Y_test = create_dataset(data_norm[train_size::], feature_size)
 
-results = try_random(5)
+    # reshape data into 3D LSTM input [samples, timesteps, features]
+    # see https://machinelearningmastery.com/reshape-input-data-long-short-term-memory-networks-keras/
+    X_train = np.reshape(X_train, (X_train.shape[0], feature_size))
+    X_test = np.reshape(X_test, (X_test.shape[0], feature_size))
+
+
+    # create Multilayered Perceptron network
+    model = Sequential()
+    model.add(Dense(25,input_dim=feature_size))
+    model.add(Activation('linear'))    
+    model.add(Dropout(0.1))
+
+    model.add(Dense(1))  # Xavier initialization, default no activation
+
+    start = time.time()
+
+    ##### try different optimizers and loss fxn ###### below
+    sgd = kr.optimizers.SGD(lr=lr, decay=decay, momentum=momentum, nesterov=True)
+    rms = kr.optimizers.rmsprop(lr=0.00005, rho=0.9, epsilon=None, decay=0.0)
+
+    model.compile(loss='mse', optimizer='adam')
+    print('compilation time : ', time.time() - start)
+
+    # train model ####try different batchsize, epoch, justify why validation split=0.4
+    history = model.fit(
+        X_train,
+        Y_train,
+        batch_size=240,
+        epochs=epoch,
+        validation_split=0.4,
+        verbose=0)
+
+    score = model.evaluate(X_test, Y_test, batch_size=240)
+    return score
+
+
+results = try_random(200)
 results_df = pd.DataFrame(data= results, columns=['Epoch','Decay','Learning Rate','Momentum','Feature Size','Score'])
-results_df.to_csv("AdamResults.csv")
+results_df.to_csv("LSTM_adam_Results.csv")
