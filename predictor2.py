@@ -8,8 +8,9 @@ from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation, LSTM
 from keras.layers import SimpleRNN, RNN, LeakyReLU
 import matplotlib.pyplot as plt
-from sklearn.preprocessing import MinMaxScaler
 import random
+from keras import backend as K
+K.tensorflow_backend._get_available_gpus()
 
 
 
@@ -176,6 +177,6 @@ def LSTM_1(data_norm, epoch, decay, lr, momentum, feature_size, rho):
     score = model.evaluate(X_test, Y_test, batch_size=240)
     return score
 
-results = try_random(10)
+results = try_random(1)
 #results_df = pd.DataFrame(data=results, columns=['Epoch', 'Decay', 'Learning Rate', 'Momentum', 'Feature Size', 'Rho', 'Score'])
 #results_df.to_csv("RNNadamResults.csv")
