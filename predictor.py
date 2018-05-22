@@ -5,10 +5,12 @@ import pandas as pd
 import numpy as np
 import keras as kr
 from keras.models import Sequential
-from keras.layers import Dense, Dropout, Activation, LSTM
+from keras.layers import Dense, Dropout, Activation, LSTM, Conv1D, GlobalAveragePooling1D, Flatten
 import matplotlib.pyplot as plt
-from sklearn.preprocessing import MinMaxScaler
 import random
+from keras import backend as K
+
+K.tensorflow_backend._get_available_gpus()
 
 # set range for hyperparameters
 epoch_range = [40,200]
@@ -16,6 +18,11 @@ decay_range = [.9, .99]
 lr_range = [0.0000001, 0.001]
 momentum_range = [0.8, 0.95]
 feature_size_range = [1, 500]
+
+# additional hyperparameters for CNN
+strides_range = [1,5] 
+filters_range = [5,50] # output space, number of output filters in the convolution
+kernel_size_range = [3,20] # filter size
 
 # fetch csv file using Alpha Vantage api
 url = 'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol=INX&outputsize=full&datatype=csv&apikey=9B9U2G2YHKS9ME8T'
@@ -60,9 +67,30 @@ def try_random(trials):
         momentum = random.uniform(momentum_range[0], momentum_range[1])
         feature_size = int(random.uniform(feature_size_range[0], feature_size_range[1]))
         print("Feature Size: " + str(feature_size) + "\n")
-        score = LSTM_1(data_norm, epoch, decay, lr, momentum, feature_size)
+        score = Multi_Perceptron(data_norm, epoch, decay, lr, momentum, feature_size)
         print("The Score is: " + str(score) + "\n")
         results.append([epoch, decay, lr, momentum, feature_size, score])
+    return results
+
+
+# CNN randomization, requires a few additional hyperparameters
+def try_random_CNN(trials):
+    results = []
+    for i in range(0, trials):
+        print("Trial "+str(i)+"\n")
+        epoch = int(random.uniform(epoch_range[0], epoch_range[1]))
+        print("Number of Epochs: " + str(epoch) + "\n")
+        decay = random.uniform(decay_range[0], decay_range[1])
+        lr = random.uniform(lr_range[0], lr_range[1])
+        momentum = random.uniform(momentum_range[0], momentum_range[1])
+        feature_size = int(random.uniform(feature_size_range[0], feature_size_range[1]))
+        print("Feature Size: " + str(feature_size) + "\n")
+        strides_ = int(random.uniform(strides_range[0],strides_range[1]))
+        filters_ = int(random.uniform(filters_range[0],filters_range[1]))
+        kernel_size_ = int(random.uniform(kernel_size_range[0],kernel_size_range[1]))
+        score = CNN(data_norm, epoch, decay, lr, momentum, feature_size, strides_,filters_,kernel_size_)
+        print("The Score is: " + str(score) + "\n")
+        results.append([epoch, decay, lr, momentum, feature_size, strides_, filters_, kernel_size_, score])
     return results
 
 
@@ -83,11 +111,11 @@ def LSTM_1(data_norm, epoch, decay, lr, momentum, feature_size):
     model = Sequential()
     model.add(LSTM(
         input_shape=(1, feature_size),
-        units=25,  # output space #########
+        units=25,  # output space
         return_sequences=False))  ###### change to true if additional LSTM layers
 
     #### possibly additional layers below ######
-    #model.add(Activation('linear'))   
+    #model.add(Activation('tanh'))   
     model.add(Dropout(0.1)) ########## do we need?
 
     model.add(Dense(units=1))  # Xavier initialization, default no activation
@@ -167,11 +195,12 @@ def Multi_Perceptron(data_norm, epoch, decay, lr, momentum, feature_size):
 
     # create Multilayered Perceptron network
     model = Sequential()
-    model.add(Dense(25,input_dim=feature_size))
-    model.add(Activation('linear'))    
+    model.add(Dense(25,input_dim=feature_size, activation='relu'))
+    model.add(Dropout(0.1)) # dropout regularization
+    model.add(Dense(25,activation='relu'))
     model.add(Dropout(0.1))
-
-    model.add(Dense(1))  # Xavier initialization, default no activation
+    model.add(Dense(25,activation='relu'))
+    model.add(Dense(1))
 
     start = time.time()
 
@@ -179,7 +208,7 @@ def Multi_Perceptron(data_norm, epoch, decay, lr, momentum, feature_size):
     sgd = kr.optimizers.SGD(lr=lr, decay=decay, momentum=momentum, nesterov=True)
     rms = kr.optimizers.rmsprop(lr=0.00005, rho=0.9, epsilon=None, decay=0.0)
 
-    model.compile(loss='mse', optimizer='adam')
+    model.compile(loss='mse', optimizer=rms)
     print('compilation time : ', time.time() - start)
 
     # train model ####try different batchsize, epoch, justify why validation split=0.4
@@ -195,6 +224,60 @@ def Multi_Perceptron(data_norm, epoch, decay, lr, momentum, feature_size):
     return score
 
 
-results = try_random(200)
-results_df = pd.DataFrame(data= results, columns=['Epoch','Decay','Learning Rate','Momentum','Feature Size','Score'])
-results_df.to_csv("LSTM_adam_Results.csv")
+def CNN(data_norm, epoch, decay, lr, momentum, feature_size, strides_, filters_, kernel_size_):
+    # separate training and test data
+    # feature_size = feature_size ######
+    train_size = round(data_norm.size* .6)
+    X_train, Y_train = create_dataset(data_norm[0:train_size], feature_size)
+    X_test, Y_test = create_dataset(data_norm[train_size::], feature_size)
+
+    # reshape data into 3D LSTM input [samples, timesteps, features]
+    # see https://machinelearningmastery.com/reshape-input-data-long-short-term-memory-networks-keras/
+    X_train = np.reshape(X_train, (X_train.shape[0], feature_size, 1))
+    X_test = np.reshape(X_test, (X_test.shape[0], feature_size, 1))
+
+    # create 2-layer CNN
+    model = Sequential()
+    model.add(Conv1D(
+        filters=filters_, kernel_size=kernel_size_ ,strides=strides_,     
+        input_shape=(feature_size,1),kernel_initializer= 'uniform',      
+        activation= 'relu'))
+
+    '''
+    model.add(Conv1D(
+        strides=strides_[1],
+        filters=filters_[1],
+        kernel_size=kernel_size_[1]))
+    '''
+
+    model.add(Flatten())
+
+    model.add(Dense(1, activation='relu'))
+
+    start = time.time()
+
+    ##### try different optimizers and loss fxn ###### below
+    sgd = kr.optimizers.SGD(lr=lr, decay=decay, momentum=momentum, nesterov=True)
+    rms = kr.optimizers.rmsprop(lr=0.00005, rho=0.9, epsilon=None, decay=0.0)
+
+    model.compile(loss='mse', optimizer=sgd)
+    print('compilation time : ', time.time() - start)
+
+    # train model ####try different batchsize, epoch, justify why validation split=0.4
+    history = model.fit(
+        X_train,
+        Y_train,
+        batch_size=240,
+        epochs=epoch,
+        validation_split=0.4,
+        verbose=0)
+
+    score = model.evaluate(X_test, Y_test, batch_size=240)
+    return score
+
+
+
+results = try_random_CNN(50)
+#results_df = pd.DataFrame(data= results, columns=['Epoch','Decay','Learning Rate','Momentum','Feature Size','Score'])
+results_df = pd.DataFrame(data= results, columns=['Epoch','Decay','Learning Rate','Momentum','Feature Size','Strides','Filter_Size','Kernel_size','Score'])
+results_df.to_csv("CNN_sgd_Results_4.csv")
