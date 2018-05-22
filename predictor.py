@@ -8,6 +8,9 @@ from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation, LSTM, Conv1D, GlobalAveragePooling1D, Flatten
 import matplotlib.pyplot as plt
 import random
+from keras import backend as K
+
+K.tensorflow_backend._get_available_gpus()
 
 # set range for hyperparameters
 epoch_range = [40,200]
