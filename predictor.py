@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import keras as kr
 from keras.models import Sequential
-from keras.layers import Dense, Dropout, Activation, LSTM, Conv1D, Flatten
+from keras.layers import Dense, Dropout, Activation, LSTM, Conv1D, GlobalAveragePooling1D, Flatten
 import matplotlib.pyplot as plt
 import random
 
@@ -14,7 +14,7 @@ epoch_range = [40,200]
 decay_range = [.9, .99]
 lr_range = [0.0000001, 0.001]
 momentum_range = [0.8, 0.95]
-feature_size_range = [1, 500]
+feature_size_range = [2, 500]
 
 # additional hyperparameters for CNN
 strides_range = [1,5] 
@@ -85,7 +85,10 @@ def try_random_CNN(trials):
         strides_ = []
         strides_.append(int(random.uniform(strides_range[0],strides_range[1])))
         strides_.append(int(random.uniform(strides_range[0],strides_range[1])))
-        filters_ = int(random.uniform(filters_range[0],filters_range[1]))
+        filters_ = []
+        filters_.append(int(random.uniform(filters_range[0],filters_range[1])))
+        filters_.append(int(random.uniform(filters_range[0],filters_range[1])))
+        #= int(random.uniform(filters_range[0],filters_range[1]))
         kernel_size_ = []
         kernel_size_.append(int(random.uniform(kernel_size_range[0],kernel_size_range[1])))
         kernel_size_.append(int(random.uniform(kernel_size_range[0],kernel_size_range[1])))
@@ -234,27 +237,26 @@ def CNN(data_norm, epoch, decay, lr, momentum, feature_size, strides_, filters_,
 
     # reshape data into 3D LSTM input [samples, timesteps, features]
     # see https://machinelearningmastery.com/reshape-input-data-long-short-term-memory-networks-keras/
-    X_train = np.reshape(X_train, (X_train.shape[0], 1, feature_size))
-    X_test = np.reshape(X_test, (X_test.shape[0], 1, feature_size))
-
+    X_train = np.reshape(X_train, (X_train.shape[0], feature_size, 1))
+    X_test = np.reshape(X_test, (X_test.shape[0], feature_size, 1))
 
     # create 2-layer CNN
     model = Sequential()
     model.add(Conv1D(
-        input_shape=(None,feature_size),
-        activation='relu',
-        #strides=strides_[0],
-        #filters=filters_, # output space dimensionality
-        #kernel_size=kernel_size_[0]))
-        strides=3, filters=3, kernel_size=20))
+        filters=filters_[0], kernel_size=kernel_size_[0] ,strides=strides_[0],     
+        input_shape=(feature_size,1),kernel_initializer= 'uniform',      
+        activation= 'relu'))
+
+    #model.add(Flatten())
 
     model.add(Conv1D(
-        #strides=strides_[0],
-        #filters=feature_size,
-        #kernel_size=kernel_size_[0]))
-        strides=4, filters=feature_size, kernel_size=16))
+        strides=strides_[1],
+        filters=filters_[1],
+        kernel_size=kernel_size_[1]))
 
-    
+    model.add(Flatten())
+
+    model.add(Dense(1, activation='sigmoid'))
 
     start = time.time()
 
