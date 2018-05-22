@@ -17,7 +17,7 @@ epoch_range = [40,200]
 decay_range = [.9, .99]
 lr_range = [0.0000001, 0.001]
 momentum_range = [0.8, 0.95]
-feature_size_range = [2, 500]
+feature_size_range = [1, 500]
 
 # additional hyperparameters for CNN
 strides_range = [1,5] 
@@ -85,16 +85,9 @@ def try_random_CNN(trials):
         momentum = random.uniform(momentum_range[0], momentum_range[1])
         feature_size = int(random.uniform(feature_size_range[0], feature_size_range[1]))
         print("Feature Size: " + str(feature_size) + "\n")
-        strides_ = []
-        strides_.append(int(random.uniform(strides_range[0],strides_range[1])))
-        strides_.append(int(random.uniform(strides_range[0],strides_range[1])))
-        filters_ = []
-        filters_.append(int(random.uniform(filters_range[0],filters_range[1])))
-        filters_.append(int(random.uniform(filters_range[0],filters_range[1])))
-        #= int(random.uniform(filters_range[0],filters_range[1]))
-        kernel_size_ = []
-        kernel_size_.append(int(random.uniform(kernel_size_range[0],kernel_size_range[1])))
-        kernel_size_.append(int(random.uniform(kernel_size_range[0],kernel_size_range[1])))
+        strides_ = int(random.uniform(strides_range[0],strides_range[1]))
+        filters_ = int(random.uniform(filters_range[0],filters_range[1]))
+        kernel_size_ = int(random.uniform(kernel_size_range[0],kernel_size_range[1]))
         score = CNN(data_norm, epoch, decay, lr, momentum, feature_size, strides_,filters_,kernel_size_)
         print("The Score is: " + str(score) + "\n")
         results.append([epoch, decay, lr, momentum, feature_size, strides_, filters_, kernel_size_, score])
@@ -246,20 +239,20 @@ def CNN(data_norm, epoch, decay, lr, momentum, feature_size, strides_, filters_,
     # create 2-layer CNN
     model = Sequential()
     model.add(Conv1D(
-        filters=filters_[0], kernel_size=kernel_size_[0] ,strides=strides_[0],     
+        filters=filters_, kernel_size=kernel_size_ ,strides=strides_,     
         input_shape=(feature_size,1),kernel_initializer= 'uniform',      
         activation= 'relu'))
 
-    #model.add(Flatten())
-
+    '''
     model.add(Conv1D(
         strides=strides_[1],
         filters=filters_[1],
         kernel_size=kernel_size_[1]))
+    '''
 
     model.add(Flatten())
 
-    model.add(Dense(1, activation='sigmoid'))
+    model.add(Dense(1, activation='relu'))
 
     start = time.time()
 
@@ -267,7 +260,7 @@ def CNN(data_norm, epoch, decay, lr, momentum, feature_size, strides_, filters_,
     sgd = kr.optimizers.SGD(lr=lr, decay=decay, momentum=momentum, nesterov=True)
     rms = kr.optimizers.rmsprop(lr=0.00005, rho=0.9, epsilon=None, decay=0.0)
 
-    model.compile(loss='mse', optimizer='adam')
+    model.compile(loss='mse', optimizer=sgd)
     print('compilation time : ', time.time() - start)
 
     # train model ####try different batchsize, epoch, justify why validation split=0.4
@@ -284,7 +277,7 @@ def CNN(data_norm, epoch, decay, lr, momentum, feature_size, strides_, filters_,
 
 
 
-results = try_random_CNN(3)
+results = try_random_CNN(50)
 #results_df = pd.DataFrame(data= results, columns=['Epoch','Decay','Learning Rate','Momentum','Feature Size','Score'])
 results_df = pd.DataFrame(data= results, columns=['Epoch','Decay','Learning Rate','Momentum','Feature Size','Strides','Filter_Size','Kernel_size','Score'])
-results_df.to_csv("CNN_adam_Results.csv")
+results_df.to_csv("CNN_sgd_Results_4.csv")
