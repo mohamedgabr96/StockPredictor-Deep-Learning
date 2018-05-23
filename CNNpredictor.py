@@ -6,6 +6,8 @@ import numpy as np
 import keras as kr
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation, LSTM, Conv1D, GlobalAveragePooling1D, Flatten
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 import random
 from keras import backend as K
@@ -111,8 +113,7 @@ def train_CNN(filters_, kernel_size_, strides_, feature_size, lr, decay, momentu
         Y_train,
         batch_size=240,
         epochs=epoch,
-        validation_split=0.4,
-        verbose=0)
+        validation_split=0.4)
     return model, history
 
 
@@ -164,4 +165,61 @@ def try_random_CNN(trials):
     return results
 
 
+# final run
 
+epoch = 61
+decay = .907061
+lr = .000557872
+momentum = .89974173
+feature_size = 371
+strides = [4,3]
+filters = [28,16]
+kernel_size = [12,12]
+
+train_size = round(data_raw.size * .6)
+X_train, Y_train = create_dataset(data_norm[0:train_size], feature_size)
+X_test, Y_test = create_dataset(data_norm[train_size::], feature_size)
+X_train = np.reshape(X_train, (X_train.shape[0], feature_size, 1))
+X_test = np.reshape(X_test, (X_test.shape[0], feature_size, 1))
+
+model,history = train_CNN(filters, kernel_size, strides, feature_size, lr, decay, momentum, X_train, Y_train, epoch)
+score = model.evaluate(X_test, Y_test, batch_size=240)
+
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title('model loss')
+plt.ylabel('loss')
+plt.xlabel('epoch')
+plt.legend(['train', 'test', 'accuracy'], loc='upper right')
+plt.savefig('CNN_loss.png')
+print("The score is " + str(score))
+plt.clf()
+
+# get predictions
+train_predictions = model.predict(X_train)
+test_predictions = model.predict(X_test)
+
+# plot normalized predictions
+plt.plot(test_predictions)
+plt.plot(Y_test)
+plt.title('Test Predictions vs Actual, Normalized')
+plt.ylabel('score')
+plt.xlabel('sequence(t)')
+plt.legend(['predictions','actual'],loc='upper right')
+plt.savefig('CNN_predictions_normalized.png')
+plt.clf()
+
+# de-normalize the predictions
+train_predictions = (train_predictions+1) * data_raw[0]
+test_predictions = (test_predictions+1) * data_raw[0]
+train_actual = (Y_train+1) * data_raw[0]
+test_actual = (Y_test+1) * data_raw[0]
+
+# plot the denormalized predictions
+plt.plot(test_predictions)
+plt.plot(test_actual)
+plt.title('Test Predictions vs Actual, Denormalized')
+plt.ylabel('score')
+plt.xlabel('sequence(t)')
+plt.legend(['predictions','actual'],loc='upper right')
+plt.savefig('CNN_predictions_denormalized.png')
