@@ -204,4 +204,68 @@ def final_find(trials):
     df.to_csv("MLP_fine_search.csv")
     
 
-final_find(50)
+# final run
+df = pd.read_csv('data.csv')
+
+# checking to see the data was collected
+print(df.head())
+
+# pre_process data; only need daily_adjusted
+raw_data = df.loc[::-1,'adjusted_close'].values
+
+#Scale and normalize data
+data_norm = raw_data /raw_data[0] - 1
+
+epoch = 700
+lr = 0.00095
+decay = .95
+momentum = .86
+feature_size = 162
+batch_size = 180
+
+train_size = round(raw_data.size * .6)
+X_train, Y_train = create_dataset(data_norm[0:train_size], feature_size)
+X_test, Y_test = create_dataset(data_norm[train_size::], feature_size)
+X_train = np.reshape(X_train, (X_train.shape[0],  feature_size))
+X_test = np.reshape(X_test, (X_test.shape[0],  feature_size))
+model, history, score = Multi_Perceptron(X_train,Y_train,X_test,Y_test,lr, decay, momentum, feature_size, epoch, batch_size)
+# predict and plot
+
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title('model loss')
+plt.ylabel('loss')
+plt.xlabel('epoch')
+plt.legend(['train', 'test', 'accuracy'], loc='upper right')
+plt.savefig('MLP_loss.png')
+print("The score is " + str(score))
+plt.clf()
+
+# get predictions
+train_predictions = model.predict(X_train)
+test_predictions = model.predict(X_test)
+
+# plot normalized predictions
+plt.plot(test_predictions)
+plt.plot(Y_test)
+plt.title('Test Predictions vs Actual, Normalized')
+plt.ylabel('score')
+plt.xlabel('sequence(t)')
+plt.legend(['predictions','actual'],loc='upper right')
+plt.savefig('MLP_predictions_normalized.png')
+plt.clf()
+
+# de-normalize the predictions
+train_predictions = (train_predictions+1) * raw_data[0]
+test_predictions = (test_predictions+1) * raw_data[0]
+train_actual = (Y_train+1) * raw_data[0]
+test_actual = (Y_test+1) * raw_data[0]
+
+# plot the denormalized predictions
+plt.plot(test_predictions)
+plt.plot(test_actual)
+plt.title('Test Predictions vs Actual, Denormalized')
+plt.ylabel('score')
+plt.xlabel('sequence(t)')
+plt.legend(['predictions','actual'],loc='upper right')
+plt.savefig('MLP_predictions_denormalized.png')
