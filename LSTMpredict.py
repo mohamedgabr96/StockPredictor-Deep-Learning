@@ -245,13 +245,13 @@ def no_batch_find(trials):
 def predict():
     histories = []
     epochs = 700
-    feature_size = 390
-    batch_size = 30
-    neurons = 25
-    momentum = 0.9
-    rho = .85
-    lr = 0.0003
-    decay = .9
+    feature_size = 375
+    batch_size = 180
+    neurons = 1000
+    momentum = 0.8418428759613501
+    rho = 0.9194713153044991
+    lr = 0.0007888826881850667
+    decay = 0.9738939197576053
     fig, ax = plt.subplots()
     ax.set_color_cycle(['red', 'black'])
     raw_data = scrapdata()
@@ -272,6 +272,7 @@ def predict():
     plt.legend(['train', 'test', 'accuracy'], loc='upper right')
     plt.savefig("loss")
     print("The score is " + str(score))
+    plt.clf()
 
     # get predictions
     train_predictions = model.predict(X_train)
@@ -285,7 +286,7 @@ def predict():
     plt.xlabel('sequence(t)')
     plt.legend(['predictions','actual'],loc='upper right')
     plt.savefig("prediction_normalized.png")
-
+    plt.clf()
     # de-normalize the predictions
     train_predictions = (train_predictions+1) * raw_data[0]
     test_predictions = (test_predictions+1) * raw_data[0]
@@ -300,9 +301,10 @@ def predict():
     plt.xlabel('sequence(t)')
     plt.legend(['predictions','actual'],loc='upper right')
     plt.savefig("prediction_denormalized.png")
+    plt.clf()
     return 0
 
 #no_epochs_find(10)
 #no_feature_find(100)
 
-hyperparameter_find(30)
+predict()
