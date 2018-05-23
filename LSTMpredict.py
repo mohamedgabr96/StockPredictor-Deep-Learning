@@ -188,7 +188,7 @@ def hyperparameter_find(trials):
     epochs = 700
     feature_size = 390
     batch_size = 180
-    neurons = 500
+    neurons = 275
     momentum = 0.9
     rho = .85
     lr = 0.0003
@@ -241,6 +241,66 @@ def no_batch_find(trials):
     df = pd.DataFrame(data=histories, columns=['batch size', 'Score'])
     df.to_csv("Batch_Size_Loss.csv")
 
+
+def predict():
+    histories = []
+    epochs = 700
+    feature_size = 390
+    batch_size = 30
+    neurons = 25
+    momentum = 0.9
+    rho = .85
+    lr = 0.0003
+    decay = .9
+    fig, ax = plt.subplots()
+    ax.set_color_cycle(['red', 'black'])
+    raw_data = scrapdata()
+    train_size = round(raw_data.size * .6)
+    X_train, Y_train = create_dataset(raw_data[0:train_size], feature_size)
+    X_test, Y_test = create_dataset(raw_data[train_size::], feature_size)
+    X_train = np.reshape(X_train, (X_train.shape[0], 1, feature_size))
+    X_test = np.reshape(X_test, (X_test.shape[0], 1, feature_size))
+    model, history, score = LSTM_1(lr, decay, momentum, rho, feature_size, epochs, neurons, batch_size, X_train,
+                                   Y_train, X_test, Y_test)
+
+
+    plt.plot(history.history['loss'])
+    plt.plot(history.history['val_loss'])
+    plt.title('model loss')
+    plt.ylabel('loss')
+    plt.xlabel('epoch')
+    plt.legend(['train', 'test', 'accuracy'], loc='upper right')
+    plt.savefig("loss")
+    print("The score is " + str(score))
+
+    # get predictions
+    train_predictions = model.predict(X_train)
+    test_predictions = model.predict(X_test)
+
+    # plot normalized predictions
+    plt.plot(test_predictions)
+    plt.plot(Y_test)
+    plt.title('Test Predictions vs Actual, Normalized')
+    plt.ylabel('score')
+    plt.xlabel('sequence(t)')
+    plt.legend(['predictions','actual'],loc='upper right')
+    plt.savefig("prediction_normalized.png")
+
+    # de-normalize the predictions
+    train_predictions = (train_predictions+1) * raw_data[0]
+    test_predictions = (test_predictions+1) * raw_data[0]
+    train_actual = (Y_train+1) * raw_data[0]
+    test_actual = (Y_test+1) * raw_data[0]
+
+    # plot the denormalized predictions
+    plt.plot(test_predictions)
+    plt.plot(test_actual)
+    plt.title('Test Predictions vs Actual, Denormalized')
+    plt.ylabel('score')
+    plt.xlabel('sequence(t)')
+    plt.legend(['predictions','actual'],loc='upper right')
+    plt.savefig("prediction_denormalized.png")
+    return 0
 
 #no_epochs_find(10)
 #no_feature_find(100)
