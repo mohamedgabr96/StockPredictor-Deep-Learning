@@ -22,29 +22,30 @@ momentum_range = [0.8, 0.95]
 feature_size_range = [1, 500]
 neuron_range = [5, 100]
 
-# fetch csv file using Alpha Vantage api
-url = 'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol=INX&outputsize=full&datatype=csv&apikey=9B9U2G2YHKS9ME8T'
-print('collecting data...')
-data = requests.get(url)
 
-df = pd.read_csv(io.StringIO(data.text),index_col=None)
-#df = pd.read_csv('data.csv')
+def scrapdata():
+    #url = 'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol=INX&outputsize=full&datatype=csv&apikey=9B9U2G2YHKS9ME8T'
+    print('collecting data...')
+    #data = requests.get(url)
 
-# checking to see the data was collected
-print(df.head())
+    #df = pd.read_csv(io.StringIO(data.text),index_col=None)
+    df = pd.read_csv('data.csv')
 
-# save csv
-#df.to_csv('data.csv')
+    # checking to see the data was collected
+    print(df.head())
 
-# pre_process data; only need daily_adjusted
-data_raw = df.loc[::-1,'adjusted_close'].values
+    # save csv
+    df.to_csv('data.csv')
 
-# normalize data
-data_norm = data_raw/data_raw[0] - 1
+    # pre_process data; only need daily_adjusted
+    data_raw = df.loc[::-1,'adjusted_close'].values
 
-# convert raw series data into x and y dataset. y = x(t+1)
-# representation with 1 input feature by default when using a stateful LSTM
-# alternatively, we can use multiple days. see https://machinelearningmastery.com/use-features-lstm-networks-time-series-forecasting/
+    #Scale and normalize data
+    data_norm = data_raw/data_raw[0] - 1
+
+    return data_norm
+
+
 def create_dataset(data, feature_size = 1):
     X, Y = [],[]
     for i in range(data.size - feature_size - 1):
@@ -53,37 +54,8 @@ def create_dataset(data, feature_size = 1):
         Y.append(data[i+feature_size])
     return np.array(X),np.array(Y)
 
-# random hyperparameter trial runs for a network
-def try_random(trials):
-    results = []
-    for i in range(0, trials):
-        print("Trial "+str(i)+"\n")
-        epoch = int(random.uniform(epoch_range[0], epoch_range[1]))
-        print("Number of Epochs: " + str(epoch) + "\n")
-        decay = random.uniform(decay_range[0], decay_range[1])
-        lr = random.uniform(lr_range[0], lr_range[1])
-        momentum = random.uniform(momentum_range[0], momentum_range[1])
-        feature_size = int(random.uniform(feature_size_range[0], feature_size_range[1]))
-        print("Feature Size: " + str(feature_size) + "\n")
-        score = Multi_Perceptron(data_norm, epoch, decay, lr, momentum, feature_size)
-        print("The Score is: " + str(score) + "\n")
-        results.append([epoch, decay, lr, momentum, feature_size, score])
-    return results
 
-
-def Multi_Perceptron(data_norm, epoch, decay, lr, momentum, feature_size):
-    # separate training and test data
-    # feature_size = feature_size ######
-    train_size = round(data_norm.size* .6)
-    X_train, Y_train = create_dataset(data_norm[0:train_size], feature_size)
-    X_test, Y_test = create_dataset(data_norm[train_size::], feature_size)
-
-    # reshape data into 3D LSTM input [samples, timesteps, features]
-    # see https://machinelearningmastery.com/reshape-input-data-long-short-term-memory-networks-keras/
-    X_train = np.reshape(X_train, (X_train.shape[0], feature_size))
-    X_test = np.reshape(X_test, (X_test.shape[0], feature_size))
-
-
+def train(X_train,Y_train,X_test,Y_test,lr,decay,momentum,feature_size,epoch):
     # create Multilayered Perceptron network
     model = Sequential()
     model.add(Dense(25,input_dim=feature_size, activation='relu'))
@@ -108,53 +80,76 @@ def Multi_Perceptron(data_norm, epoch, decay, lr, momentum, feature_size):
         Y_train,
         batch_size=240,
         epochs=epoch,
-        validation_split=0.4,
-        verbose=0)
+        validation_split=0.4)
 
     score = model.evaluate(X_test, Y_test, batch_size=240)
-    '''
-    # predict and plot
-
-    plt.plot(history.history['loss'])
-    plt.plot(history.history['val_loss'])
-    plt.title('model loss')
-    plt.ylabel('loss')
-    plt.xlabel('epoch')
-    plt.legend(['train', 'test', 'accuracy'], loc='upper right')
-    plt.savefig('MLP_loss.png',bbox_inches='tight')
-    print("The score is " + str(score))
-
-    # get predictions
-    train_predictions = model.predict(X_train)
-    test_predictions = model.predict(X_test)
-    
-    # plot normalized predictions
-    plt.plot(test_predictions)
-    plt.plot(Y_test)
-    plt.title('Test Predictions vs Actual, Normalized')
-    plt.ylabel('score')
-    plt.xlabel('sequence(t)')
-    plt.legend(['predictions','actual'],loc='upper right')
-    plt.savefig('MLP_predictions_norm.png',bbox_inches='tight')
-    
-    # de-normalize the predictions
-    train_predictions = (train_predictions+1) * data_raw[0]
-    test_predictions = (test_predictions+1) * data_raw[0]
-    train_actual = (Y_train+1) * data_raw[0]
-    test_actual = (Y_test+1) * data_raw[0]
-    
-    # plot the denormalized predictions
-    plt.plot(test_predictions)
-    plt.plot(test_actual)
-    plt.title('Test Predictions vs Actual, Denormalized')
-    plt.ylabel('score')
-    plt.xlabel('sequence(t)')
-    plt.legend(['predictions','actual'],loc='upper right')
-    plt.savefig('MLP_predictions_denorm.png',bbox_inches='tight')
-    '''
-    return score
+    return model,history, score
 
 
+def Multi_Perceptron(lr, decay, momentum, feature_size, epoch):
+    # scrap the data
+    raw_data = scrapdata()
+    # difference the data to remove increasing trends
+    # split data into training and test
+    train_size = round(raw_data.size * .6)
+    X_train, Y_train = create_dataset(raw_data[0:train_size], feature_size)
+    X_test, Y_test = create_dataset(raw_data[train_size::], feature_size)
+    X_train = np.reshape(X_train, (X_train.shape[0],  feature_size))
+    X_test = np.reshape(X_test, (X_test.shape[0],  feature_size))
+    return train(X_train, Y_train,X_test,Y_test, lr, decay, momentum, feature_size, epoch)
+
+
+def no_epochs_find(trials):
+    histories = []
+    epochs = 1000
+    feature_size_n = [30,390]
+    momentum_n = [.83,.89]
+    lr_n = [.0002,.001]
+    decay_n = [.91,.99]
+    fig, ax = plt.subplots()
+    ax.set_color_cycle(['red', 'black'])
+    for i in range(0, trials):
+        lr = random.uniform(lr_n[0], lr_n[1])
+        decay = random.uniform(decay_n[0], decay_n[1])
+        momentum = random.uniform(momentum_n[0], momentum_n[1])
+        feature_size = int(random.uniform(feature_size_n[0], feature_size_n[1]))
+
+        model, history, score = Multi_Perceptron(lr, decay, momentum, feature_size, epochs)
+        histories.append(history)
+        plt.plot(history.history['loss'])
+        plt.plot(history.history['val_loss'])
+        plt.title('model loss')
+        plt.ylabel('loss')
+        plt.xlabel('epoch')
+    plt.savefig('MLP_loss.png')
+
+
+def no_features_find(trials):
+    histories = []
+    epochs = 700
+    feature_size_n = [30,390]
+    momentum_n = [.83,.89]
+    lr_n = [.0002,.001]
+    decay_n = [.91,.99]
+    fig, ax = plt.subplots()
+    ax.set_color_cycle(['red', 'black'])
+    for i in range(0, trials):
+        print('trial '+str(i)+'\n')
+        lr = random.uniform(lr_n[0], lr_n[1])
+        decay = random.uniform(decay_n[0], decay_n[1])
+        momentum = random.uniform(momentum_n[0], momentum_n[1])
+        feature_size = int(random.uniform(feature_size_n[0], feature_size_n[1]))
+
+        model, history, score = Multi_Perceptron(lr, decay, momentum, feature_size, epochs)
+        histories.append([feature_size, score])
+    df = pd.DataFrame(data=histories, columns=['Feature Size', 'Score'])
+    df.to_csv("MLP_Feature_Size_Loss.csv")
+
+
+'''
 results = try_random(200)
 results_df = pd.DataFrame(data= results, columns=['Epoch','Decay','Learning Rate','Momentum','Feature Size','Score'])
 results_df.to_csv("MLP_sgd_results.csv")
+'''
+
+no_features_find(50)
