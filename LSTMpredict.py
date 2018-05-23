@@ -26,18 +26,18 @@ scale_range = [-1, 1]
 
 
 def scrapdata():
-    url = 'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol=INX&outputsize=full&datatype=csv&apikey=9B9U2G2YHKS9ME8T'
+    #url = 'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol=INX&outputsize=full&datatype=csv&apikey=9B9U2G2YHKS9ME8T'
     print('collecting data...')
-    data = requests.get(url)
+    #data = requests.get(url)
 
-    df = pd.read_csv(io.StringIO(data.text),index_col=None)
-    # df = pd.read_csv('data.csv')
+    #df = pd.read_csv(io.StringIO(data.text),index_col=None)
+    df = pd.read_csv('data.csv')
 
     # checking to see the data was collected
     print(df.head())
 
     # save csv
-    df.to_csv('data.csv')
+   # df.to_csv('data.csv')
 
     # pre_process data; only need daily_adjusted
     data_raw = df.loc[::-1,'adjusted_close'].values
@@ -70,11 +70,11 @@ def rescale(data_set):
     return rescaled
 
 
-def train(x_train, y_train, lr, decay, momentum, rho, feature_size, epoch):
+def train(x_train, y_train, lr, decay, momentum, rho, feature_size, epoch,neurons, batch_size):
     model = Sequential()
     model.add(LSTM(
         input_shape=(1, feature_size),
-        units=500,  # output space #########
+        units=neurons,  # output space #########
         activation='tanh',
         return_sequences=False))
     model.add(Dense(units=1))
@@ -86,13 +86,20 @@ def train(x_train, y_train, lr, decay, momentum, rho, feature_size, epoch):
     history = model.fit(
         x_train,
         y_train,
-        batch_size=240,
+        batch_size=batch_size,
         epochs=epoch,
         validation_split=0.4)
     return model, history
 
-def LSTM_1(lr, decay, momentum, rho , feature_size, epoch):
+def LSTM_1(lr, decay, momentum, rho , feature_size, epoch, neurons, batch_size, X_train, Y_train, X_test,Y_test):
     # scrap the data
+    model, history = train(X_train, Y_train, lr, decay, momentum, rho, feature_size, epoch,neurons, batch_size)
+    score = model.evaluate(X_test, Y_test, batch_size=batch_size)
+    return model, history, score
+
+
+
+def load_data(feature_size):
     raw_data = scrapdata()
     # difference the data to remove increasing trends
     # split data into training and test
@@ -101,31 +108,137 @@ def LSTM_1(lr, decay, momentum, rho , feature_size, epoch):
     X_test, Y_test = create_dataset(raw_data[train_size::], feature_size)
     X_train = np.reshape(X_train, (X_train.shape[0], 1, feature_size))
     X_test = np.reshape(X_test, (X_test.shape[0], 1, feature_size))
-    return train(X_train, Y_train, lr, decay, momentum, rho , feature_size, epoch)
-
+    return X_train, Y_train, X_test,Y_test
 
 
 def no_epochs_find(trials):
     histories = []
     epochs = 1000
-    feature_size = 200
+    feature_size = int(random.uniform(1, 500))
     momentum = 0.9
     rho = .85
     lr = 0.0003
     decay = .9
     fig, ax = plt.subplots()
     ax.set_color_cycle(['red', 'black'])
+    X_train, Y_train, X_test, Y_test = load_data(feature_size)
     for i in range(0, trials):
-        model, history = LSTM_1(lr, decay, momentum, rho, feature_size, epochs)
+        model, history, score = LSTM_1(lr, decay, momentum, rho, feature_size, epochs, 240)
         histories.append(history)
-        plt.plot(history.history['loss'])
-        plt.plot(history.history['val_loss'])
-        plt.title('model loss')
-        plt.ylabel('loss')
-        plt.xlabel('epoch')
+
+        feature_size = int(random.uniform(1, 500))
     plt.savefig('loss.png')
 
+#after the test with epochs, 700 was chosen
+def no_feature_find(trials):
+    histories = []
+    epochs = 700
+    feature_size = int(random.uniform(1, 500))
+    momentum = 0.9
+    rho = .85
+    lr = 0.0003
+    decay = .9
+    fig, ax = plt.subplots()
+    ax.set_color_cycle(['red', 'black'])
+    raw_data = scrapdata()
+    for i in range(0, trials):
+        print("ITERATION NUMBER " + str(i))
+        train_size = round(raw_data.size * .6)
+        X_train, Y_train = create_dataset(raw_data[0:train_size], feature_size)
+        X_test, Y_test = create_dataset(raw_data[train_size::], feature_size)
+        X_train = np.reshape(X_train, (X_train.shape[0], 1, feature_size))
+        X_test = np.reshape(X_test, (X_test.shape[0], 1, feature_size))
+        model, history, score = LSTM_1(lr, decay, momentum, rho, feature_size, epochs, 240, X_train, Y_train, X_test, Y_test)
+        histories.append([feature_size, score])
+        feature_size = int(random.uniform(1, 500))
+    df = pd.DataFrame(data=histories, columns=['Feature Size', 'Score'])
+    df.to_csv("Feature_Size_Loss.csv")
+
+def no_batch_find(trials):
+    histories = []
+    epochs = 700
+    feature_size = 390
+    batch_size = int(random.uniform(1, 300))
+    neurons = 500
+    momentum = 0.9
+    rho = .85
+    lr = 0.0003
+    decay = .9
+    fig, ax = plt.subplots()
+    ax.set_color_cycle(['red', 'black'])
+    raw_data = scrapdata()
+    for i in range(0, trials):
+        print("ITERATION NUMBER " + str(i))
+        train_size = round(raw_data.size * .6)
+        X_train, Y_train = create_dataset(raw_data[0:train_size], feature_size)
+        X_test, Y_test = create_dataset(raw_data[train_size::], feature_size)
+        X_train = np.reshape(X_train, (X_train.shape[0], 1, feature_size))
+        X_test = np.reshape(X_test, (X_test.shape[0], 1, feature_size))
+
+        model, history, score = LSTM_1(lr, decay, momentum, rho, feature_size, epochs, neurons, batch_size,  X_train, Y_train, X_test, Y_test)
+        histories.append([batch_size, score])
+        batch_size = int(random.uniform(1, 300))
+    df = pd.DataFrame(data=histories, columns=['batch size', 'Score'])
+    df.to_csv("Batch_Size_Loss.csv")
+
+
+def no_neurons_find(trials):
+    histories = []
+    epochs = 700
+    feature_size = 390
+    batch_size = int(random.uniform(1, 300))
+    neurons = int(random.uniform(1,1000))
+    momentum = 0.9
+    rho = .85
+    lr = 0.0003
+    decay = .9
+    fig, ax = plt.subplots()
+    ax.set_color_cycle(['red', 'black'])
+    raw_data = scrapdata()
+    for i in range(0, trials):
+        print("ITERATION NUMBER " + str(i))
+        train_size = round(raw_data.size * .6)
+        X_train, Y_train = create_dataset(raw_data[0:train_size], feature_size)
+        X_test, Y_test = create_dataset(raw_data[train_size::], feature_size)
+        X_train = np.reshape(X_train, (X_train.shape[0], 1, feature_size))
+        X_test = np.reshape(X_test, (X_test.shape[0], 1, feature_size))
+        model, history, score = LSTM_1(lr, decay, momentum, rho, feature_size, epochs, neurons, batch_size,  X_train, Y_train, X_test, Y_test)
+        histories.append([batch_size, score])
+        batch_size = int(random.uniform(1, 300))
+    df = pd.DataFrame(data=histories, columns=['batch size', 'Score'])
+    df.to_csv("Batch_Size_Loss.csv")
 
 
 
-no_epochs_find(10)
+def no_batch_find(trials):
+    histories = []
+    epochs = 700
+    feature_size = 390
+    batch_size = int(random.uniform(1, 300))
+    neurons = 25
+    momentum = 0.9
+    rho = .85
+    lr = 0.0003
+    decay = .9
+    fig, ax = plt.subplots()
+    ax.set_color_cycle(['red', 'black'])
+    raw_data = scrapdata()
+    for i in range(0, trials):
+        print("ITERATION NUMBER " + str(i))
+        train_size = round(raw_data.size * .6)
+        X_train, Y_train = create_dataset(raw_data[0:train_size], feature_size)
+        X_test, Y_test = create_dataset(raw_data[train_size::], feature_size)
+        X_train = np.reshape(X_train, (X_train.shape[0], 1, feature_size))
+        X_test = np.reshape(X_test, (X_test.shape[0], 1, feature_size))
+
+        model, history, score = LSTM_1(lr, decay, momentum, rho, feature_size, epochs, neurons, batch_size,  X_train, Y_train, X_test, Y_test)
+        histories.append([batch_size, score])
+        batch_size = int(random.uniform(1, 300))
+    df = pd.DataFrame(data=histories, columns=['batch size', 'Score'])
+    df.to_csv("Batch_Size_Loss.csv")
+
+
+#no_epochs_find(10)
+#no_feature_find(100)
+
+no_batch_find(50)
