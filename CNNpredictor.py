@@ -164,7 +164,4 @@ def try_random_CNN(trials):
     return results
 
 
-results = try_random_CNN(10)
-#results_df = pd.DataFrame(data= results, columns=['Epoch','Decay','Learning Rate','Momentum','Feature Size','Score'])
-results_df = pd.DataFrame(data= results, columns=['Epoch','Decay','Learning Rate','Momentum','Feature Size','Strides','Filter_Size','Kernel_size','Score'])
-results_df.to_csv("CNN_adam_Results_final.csv")
+
