@@ -181,12 +181,11 @@ def no_batch_find(trials):
     df = pd.DataFrame(data=histories, columns=['batch size', 'Score'])
     df.to_csv("Batch_Size_Loss.csv")
 
-
 def no_neurons_find(trials):
     histories = []
     epochs = 700
     feature_size = 390
-    batch_size = int(random.uniform(1, 300))
+    batch_size = 240
     neurons = int(random.uniform(1,1000))
     momentum = 0.9
     rho = .85
@@ -202,11 +201,13 @@ def no_neurons_find(trials):
         X_test, Y_test = create_dataset(raw_data[train_size::], feature_size)
         X_train = np.reshape(X_train, (X_train.shape[0], 1, feature_size))
         X_test = np.reshape(X_test, (X_test.shape[0], 1, feature_size))
+
         model, history, score = LSTM_1(lr, decay, momentum, rho, feature_size, epochs, neurons, batch_size,  X_train, Y_train, X_test, Y_test)
         histories.append([batch_size, score])
-        batch_size = int(random.uniform(1, 300))
-    df = pd.DataFrame(data=histories, columns=['batch size', 'Score'])
-    df.to_csv("Batch_Size_Loss.csv")
+        neurons = int(random.uniform(1, 1000))
+    df = pd.DataFrame(data=histories, columns=['neurons size', 'Score'])
+    df.to_csv("Neurons_Size_Loss.csv")
+
 
 
 
@@ -241,4 +242,7 @@ def no_batch_find(trials):
 #no_epochs_find(10)
 #no_feature_find(100)
 
-no_batch_find(50)
+#no_batch_find(50)
+
+
+no_neurons_find(50)
