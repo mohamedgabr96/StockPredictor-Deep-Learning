@@ -154,32 +154,6 @@ def no_feature_find(trials):
     df = pd.DataFrame(data=histories, columns=['Feature Size', 'Score'])
     df.to_csv("Feature_Size_Loss.csv")
 
-def no_batch_find(trials):
-    histories = []
-    epochs = 700
-    feature_size = 390
-    batch_size = int(random.uniform(1, 300))
-    neurons = 500
-    momentum = 0.9
-    rho = .85
-    lr = 0.0003
-    decay = .9
-    fig, ax = plt.subplots()
-    ax.set_color_cycle(['red', 'black'])
-    raw_data = scrapdata()
-    for i in range(0, trials):
-        print("ITERATION NUMBER " + str(i))
-        train_size = round(raw_data.size * .6)
-        X_train, Y_train = create_dataset(raw_data[0:train_size], feature_size)
-        X_test, Y_test = create_dataset(raw_data[train_size::], feature_size)
-        X_train = np.reshape(X_train, (X_train.shape[0], 1, feature_size))
-        X_test = np.reshape(X_test, (X_test.shape[0], 1, feature_size))
-
-        model, history, score = LSTM_1(lr, decay, momentum, rho, feature_size, epochs, neurons, batch_size,  X_train, Y_train, X_test, Y_test)
-        histories.append([batch_size, score])
-        batch_size = int(random.uniform(1, 300))
-    df = pd.DataFrame(data=histories, columns=['batch size', 'Score'])
-    df.to_csv("Batch_Size_Loss.csv")
 
 
 def no_neurons_find(trials):
@@ -209,12 +183,42 @@ def no_neurons_find(trials):
     df.to_csv("Batch_Size_Loss.csv")
 
 
+def hyperparameter_find(trials):
+    histories = []
+    epochs = 700
+    feature_size = 390
+    batch_size = 180
+    neurons = 500
+    momentum = 0.9
+    rho = .85
+    lr = 0.0003
+    decay = .9
+    fig, ax = plt.subplots()
+    ax.set_color_cycle(['red', 'black'])
+    raw_data = scrapdata()
+    for i in range(0, trials):
+        momentum = int(random.uniform(momentum_range[0],momentum_range[1]))
+        rho = int(random.uniform(rho_range[0],rho_range[1]))
+        lr = int(random.uniform(lr_range[0],lr_range[1]))
+        decay = int(random.uniform(decay_range[0],decay_range[1]))
+        print("ITERATION NUMBER " + str(i))
+        train_size = round(raw_data.size * .6)
+        X_train, Y_train = create_dataset(raw_data[0:train_size], feature_size)
+        X_test, Y_test = create_dataset(raw_data[train_size::], feature_size)
+        X_train = np.reshape(X_train, (X_train.shape[0], 1, feature_size))
+        X_test = np.reshape(X_test, (X_test.shape[0], 1, feature_size))
+        model, history, score = LSTM_1(lr, decay, momentum, rho, feature_size, epochs, neurons, batch_size,  X_train, Y_train, X_test, Y_test)
+        histories.append([momentum, rho, lr, decay, score])
+    df = pd.DataFrame(data=histories, columns=['momentum', 'rho', 'lr', 'decay', 'score'])
+    df.to_csv("SGD_LSTM_Loss.csv")
+
+
 
 def no_batch_find(trials):
     histories = []
     epochs = 700
     feature_size = 390
-    batch_size = int(random.uniform(1, 300))
+    batch_size = 30
     neurons = 25
     momentum = 0.9
     rho = .85
@@ -233,7 +237,7 @@ def no_batch_find(trials):
 
         model, history, score = LSTM_1(lr, decay, momentum, rho, feature_size, epochs, neurons, batch_size,  X_train, Y_train, X_test, Y_test)
         histories.append([batch_size, score])
-        batch_size = int(random.uniform(1, 300))
+        batch_size += 30
     df = pd.DataFrame(data=histories, columns=['batch size', 'Score'])
     df.to_csv("Batch_Size_Loss.csv")
 
@@ -241,4 +245,4 @@ def no_batch_find(trials):
 #no_epochs_find(10)
 #no_feature_find(100)
 
-no_batch_find(50)
+hyperparameter_find(30)
