@@ -85,9 +85,15 @@ def try_random_CNN(trials):
         momentum = random.uniform(momentum_range[0], momentum_range[1])
         feature_size = int(random.uniform(feature_size_range[0], feature_size_range[1]))
         print("Feature Size: " + str(feature_size) + "\n")
-        strides_ = int(random.uniform(strides_range[0],strides_range[1]))
-        filters_ = int(random.uniform(filters_range[0],filters_range[1]))
-        kernel_size_ = int(random.uniform(kernel_size_range[0],kernel_size_range[1]))
+        strides_ = []
+        strides_.append(int(random.uniform(strides_range[0],strides_range[1])))
+        strides_.append(int(random.uniform(strides_range[0],strides_range[1])))
+        filters_ = []
+        filters_.append(int(random.uniform(filters_range[0],filters_range[1])))
+        filters_.append(int(random.uniform(filters_range[0],filters_range[1])))
+        kernel_size_ = []
+        kernel_size_.append(int(random.uniform(kernel_size_range[0],kernel_size_range[1])))
+        kernel_size_.append(int(random.uniform(kernel_size_range[0],kernel_size_range[1])))
         score = CNN(data_norm, epoch, decay, lr, momentum, feature_size, strides_,filters_,kernel_size_)
         print("The Score is: " + str(score) + "\n")
         results.append([epoch, decay, lr, momentum, feature_size, strides_, filters_, kernel_size_, score])
@@ -239,16 +245,16 @@ def CNN(data_norm, epoch, decay, lr, momentum, feature_size, strides_, filters_,
     # create 2-layer CNN
     model = Sequential()
     model.add(Conv1D(
-        filters=filters_, kernel_size=kernel_size_ ,strides=strides_,     
+        filters=filters_[0], kernel_size=kernel_size_[0] ,strides=strides_[0],     
         input_shape=(feature_size,1),kernel_initializer= 'uniform',      
         activation= 'relu'))
 
-    '''
+    #model.add(Flatten())
+
     model.add(Conv1D(
         strides=strides_[1],
         filters=filters_[1],
         kernel_size=kernel_size_[1]))
-    '''
 
     model.add(Flatten())
 
@@ -277,7 +283,7 @@ def CNN(data_norm, epoch, decay, lr, momentum, feature_size, strides_, filters_,
 
 
 
-results = try_random_CNN(50)
+results = try_random_CNN(10)
 #results_df = pd.DataFrame(data= results, columns=['Epoch','Decay','Learning Rate','Momentum','Feature Size','Score'])
 results_df = pd.DataFrame(data= results, columns=['Epoch','Decay','Learning Rate','Momentum','Feature Size','Strides','Filter_Size','Kernel_size','Score'])
-results_df.to_csv("CNN_sgd_Results_4.csv")
+results_df.to_csv("CNN_adam_Results_final.csv")
