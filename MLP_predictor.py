@@ -87,7 +87,8 @@ def train(X_train,Y_train,X_test,Y_test,lr,decay,momentum,feature_size,epoch,bat
     return model,history, score
 
 
-def Multi_Perceptron(lr, decay, momentum, feature_size, epoch, batch_size):
+def Multi_Perceptron(X_train,Y_train,X_test,Y_test,lr, decay, momentum, feature_size, epoch, batch_size):
+    '''
     # scrap the data
     raw_data = scrapdata()
     # difference the data to remove increasing trends
@@ -97,6 +98,7 @@ def Multi_Perceptron(lr, decay, momentum, feature_size, epoch, batch_size):
     X_test, Y_test = create_dataset(raw_data[train_size::], feature_size)
     X_train = np.reshape(X_train, (X_train.shape[0],  feature_size))
     X_test = np.reshape(X_test, (X_test.shape[0],  feature_size))
+    '''
     return train(X_train, Y_train,X_test,Y_test, lr, decay, momentum, feature_size, epoch, batch_size)
 
 
@@ -166,6 +168,12 @@ def no_batch_find(trials):
 
 
 def final_find(trials):
+    # scrap the data
+    raw_data = scrapdata()
+    # difference the data to remove increasing trends
+    # split data into training and test
+    train_size = round(raw_data.size * .6)
+
     histories = []
     epochs = 700 
     feature_size_n = [135,321]
@@ -177,19 +185,23 @@ def final_find(trials):
     ax.set_color_cycle(['red', 'black'])
     for i in range(0, trials):
         print("ITERATION NUMBER " + str(i))
+
         lr = random.uniform(lr_n[0], lr_n[1])
         decay = random.uniform(decay_n[0], decay_n[1])
         momentum = random.uniform(momentum_n[0], momentum_n[1])
         feature_size = int(random.uniform(feature_size_n[0], feature_size_n[1]))
         batch_size = int(random.uniform(batch_size_n[0],batch_size_n[1]))
 
-        model, history, score = Multi_Perceptron(lr, decay, momentum, feature_size, epochs, batch_size)
+        X_train, Y_train = create_dataset(raw_data[0:train_size], feature_size)
+        X_test, Y_test = create_dataset(raw_data[train_size::], feature_size)
+        X_train = np.reshape(X_train, (X_train.shape[0],  feature_size))
+        X_test = np.reshape(X_test, (X_test.shape[0],  feature_size))
+
+        model, history, score = Multi_Perceptron(X_train,Y_train,X_test,Y_test,lr, decay, momentum, feature_size, epochs, batch_size)
         histories.append([lr,decay,momentum,feature_size,epochs,batch_size,score])
     plt.savefig('MLP_loss.png')
     df = pd.DataFrame(data=histories, columns=['lr', 'decay','momentum','feature_size','epochs','batch_size','score'])
     df.to_csv("MLP_fine_search.csv")
     
 
-
-
-no_batch_find(200)
+final_find(50)
